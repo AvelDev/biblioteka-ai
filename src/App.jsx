@@ -86,12 +86,9 @@ const App = () => {
           id: book.id,
           title: book.volumeInfo.title,
           authors: book.volumeInfo.authors?.join(", ") || "Nieznany autor",
-          cover:
-            book.volumeInfo.imageLinks?.thumbnail || "/placeholder-book.png",
-          isbn:
-            book.volumeInfo.industryIdentifiers?.[0]?.identifier || "Brak ISBN",
+          cover: book.volumeInfo.imageLinks?.thumbnail || "/placeholder-book.png",
+          isbn: book.volumeInfo.industryIdentifiers?.[0]?.identifier || "Brak ISBN",
           description: book.volumeInfo.description || "Brak opisu",
-          addedAt: new Date().toISOString(),
         })) || [];
 
       setSearchResults(formattedResults);
@@ -105,25 +102,42 @@ const App = () => {
 
   const handleAddBook = async (book) => {
     try {
+      const now = new Date().toISOString();
       const newBook = {
-        ...book,
         user_id: session.user.id,
+        title: book.title,
+        authors: book.authors,
+        cover: book.cover,
+        isbn: book.isbn,
+        description: book.description,
         status: BOOK_STATUS.TO_READ,
+        added_at: now,
+        created_at: now
       };
 
-      const { error } = await supabase.from("books").insert([newBook]);
+      console.log('Próba zapisania książki:', newBook);
+      const { data, error } = await supabase
+        .from("books")
+        .insert([newBook])
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Szczegóły błędu:', error);
+        throw error;
+      }
+
+      console.log('Książka zapisana:', data);
+      const savedBook = data[0];
 
       setBooks((prev) => ({
         ...prev,
-        [BOOK_STATUS.TO_READ]: [...prev[BOOK_STATUS.TO_READ], newBook],
+        [BOOK_STATUS.TO_READ]: [...prev[BOOK_STATUS.TO_READ], savedBook],
       }));
       setSearchResults([]);
       setSearchQuery("");
     } catch (error) {
       console.error("Błąd podczas dodawania książki:", error);
-      alert("Nie udało się dodać książki. Spróbuj ponownie.");
+      alert(`Nie udało się dodać książki: ${error.message}`);
     }
   };
 
@@ -133,7 +147,7 @@ const App = () => {
         .from("books")
         .update({
           status: toStatus,
-          statusChangedAt: new Date().toISOString(),
+          status_changed_at: new Date().toISOString(),
         })
         .eq("id", bookId)
         .eq("user_id", session.user.id);
@@ -147,7 +161,7 @@ const App = () => {
         const updatedBook = {
           ...book,
           status: toStatus,
-          statusChangedAt: new Date().toISOString(),
+          status_changed_at: new Date().toISOString(),
         };
 
         return {
@@ -158,7 +172,7 @@ const App = () => {
       });
     } catch (error) {
       console.error("Błąd podczas aktualizacji statusu:", error);
-      alert("Nie udało się zaktualizować statusu. Spróbuj ponownie.");
+      alert(`Nie udało się zaktualizować statusu: ${error.message}`);
     }
   };
 
@@ -195,12 +209,12 @@ const App = () => {
                 <p className="text-sm text-gray-600">Autor: {book.authors}</p>
                 <p className="text-sm text-gray-600">ISBN: {book.isbn}</p>
                 <p className="text-sm text-gray-600">
-                  Dodano: {new Date(book.addedAt).toLocaleDateString()}
+                  Dodano: {new Date(book.added_at).toLocaleDateString()}
                 </p>
-                {book.statusChangedAt && (
+                {book.status_changed_at && (
                   <p className="text-sm text-gray-600">
                     Zmieniono:{" "}
-                    {new Date(book.statusChangedAt).toLocaleDateString()}
+                    {new Date(book.status_changed_at).toLocaleDateString()}
                   </p>
                 )}
                 <div className="mt-2 flex gap-2 flex-wrap">
@@ -302,6 +316,21 @@ const App = () => {
         {Object.entries(books).map(([status, booksList]) => (
           <BookList key={status} status={status} books={booksList} />
         ))}
+
+        {/* Footer */}
+        <footer className="mt-12 text-center text-gray-600 text-sm">
+          <p>
+            Kod źródłowy dostępny na{" "}
+            <a
+              href="https://github.com/AvelDev/biblioteka-ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              GitHub
+            </a>
+          </p>
+        </footer>
       </div>
     </div>
   );
